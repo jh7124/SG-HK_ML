@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Football Player Pose Detector</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen flex flex-col bg-gradient-to-br from-purple-400 via-pink-500 to-red-500 px-4 pt-4 pb-0 md:px-8 md:pt-8 md:pb-0">
+    <nav class="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 shadow-lg rounded-lg m-4 md:m-0">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center">
+                    <a href="https://teachablemachine.withgoogle.com" target="_blank" rel="noopener noreferrer" class="font-bold text-xl text-white hover:text-gray-200">
+                        Teachable Machine
+                    </a>
+                </div>
+                <div class="hidden md:block">
+                    <div class="ml-10 flex items-baseline space-x-4">
+                        <a href="#" class="text-white hover:bg-indigo-500 hover:text-white px-3 py-2 rounded-md text-sm font-medium">Home</a>
+                        <a href="#" class="text-white hover:bg-indigo-500 hover:text-white px-3 py-2 rounded-md text-sm font-medium">About</a>
+                        <a href="howitworks_page.html" class="text-white hover:bg-indigo-500 hover:text-white px-3 py-2 rounded-md text-sm font-medium">How it Works</a>
+                        <a href="#" class="text-white hover:bg-indigo-500 hover:text-white px-3 py-2 rounded-md text-sm font-medium">Contact Us</a>
+                    </div>
+                </div>
+                <div class="-mr-2 flex md:hidden">
+                    <button type="button" id="mobile-menu-button" class="bg-indigo-600 inline-flex items-center justify-center p-2 rounded-md text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-indigo-600 focus:ring-white" aria-controls="mobile-menu" aria-expanded="false">
+                        <span class="sr-only">Open main menu</span>
+                        <svg class="block h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                        </svg>
+                        <svg class="hidden h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="md:hidden hidden" id="mobile-menu">
+            <div class="px-2 pt-2 pb-3 space-y-1 sm:px-3">
+                <a href="#" class="text-gray-700 hover:bg-indigo-500 hover:text-white block px-3 py-2 rounded-md text-base font-medium">Home</a>
+                <a href="#" class="text-gray-700 hover:bg-indigo-500 hover:text-white block px-3 py-2 rounded-md text-base font-medium">About</a>
+                <a href="howitworks_page.html" class="text-gray-700 hover:bg-indigo-500 hover:text-white block px-3 py-2 rounded-md text-base font-medium">How it Works</a>
+                <a href="#" class="text-gray-700 hover:bg-indigo-500 hover:text-white block px-3 py-2 rounded-md text-base font-medium">Contact Us</a>
+            </div>
+        </div>
+    </nav>
+    <div class="max-w-xl mx-auto bg-purple-100 rounded-xl shadow-lg overflow-hidden md:max-w-5xl mt-8 flex-grow p-4 md:p-8">
+        <div id="dynamic-card-content">
+            <!-- Initial content will be loaded here by JavaScript -->
+        </div>
+    </div>
+    <footer class="bg-gray-800 text-white text-center p-2 rounded-lg w-full mb-4">
+        <p>© 2025 Teachable Machine Project. All rights reserved.</p>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.3.1/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/pose@0.8/dist/teachablemachine-pose.min.js"></script>
+    <script type="text/javascript">
+        // More API functions here:
+        // https://github.com/googlecreativelab/teachablemachine-community/tree/master/libraries/pose
+
+        // the link to your model provided by Teachable Machine export panel
+        const URL = "https://teachablemachine.withgoogle.com/models/UHYDk61cp/";
+        let model, webcam, ctx, labelContainer, maxPredictions;
+        let analysisTimeout;
+        let analysisStopped = false;
+        let lastPrediction = null;
+        let dynamicCardContentElement;
+        let progressInterval; // For managing the progress bar animation
+        let currentPlayersData = {}; // To store player info for save/share
+
+        // --- Background Gradient Management ---
+        const playerBackgroundGradients = {
+            "Ronaldo": ["bg-gradient-to-r", "from-red-500", "via-red-600", "to-pink-700"],
+            "Mbappe": ["bg-gradient-to-r", "from-blue-700", "via-blue-800", "to-indigo-900"],
+            "Neymar": ["bg-gradient-to-r", "from-yellow-300", "via-yellow-400", "to-orange-500"],
+            "Messi": ["bg-gradient-to-r", "from-sky-300", "via-sky-400", "to-cyan-400"]
+        };
+        const defaultBodyGradient = ["bg-gradient-to-br", "from-purple-400", "via-pink-500", "to-red-500"];
+
+        // Create a unique list of all possible gradient classes used on the body
+        const allPossibleBodyGradientClasses = [
+            ...defaultBodyGradient,
+            ...Object.values(playerBackgroundGradients).flat()
+        ].filter((value, index, self) => self.indexOf(value) === index);
+
+        function setBodyBackground(gradientClasses) {
+            const body = document.body;
+            body.classList.remove(...allPossibleBodyGradientClasses);
+            body.classList.add(...gradientClasses);
+        }
+        // --- End Background Gradient Management ---
+
+        document.addEventListener('DOMContentLoaded', () => {
+            dynamicCardContentElement = document.getElementById('dynamic-card-content');
+            if (dynamicCardContentElement) {
+                dynamicCardContentElement.innerHTML = getInitialHTMLForCard();
+            }
+            
+            const mobileMenuButton = document.getElementById('mobile-menu-button');
+            const mobileMenu = document.getElementById('mobile-menu');
+
+            if (mobileMenuButton && mobileMenu) {
+                mobileMenuButton.addEventListener('click', () => {
+                    mobileMenu.classList.toggle('hidden');
+                });
+            }
+        });
+
+        function getInitialHTMLForCard() {
+            return `
+                <h1 class="text-2xl font-bold text-center text-indigo-600 mb-6">Football Player Pose Detector</h1>
+                <div id="progress-bar-container" class="w-full bg-gray-200 rounded-full h-2.5 mb-4 hidden">
+                    <div id="progress-bar" class="bg-indigo-600 h-2.5 rounded-full transition-all duration-100 ease-linear" style="width: 0%"></div>
+                </div>
+                <button type="button" onclick="init()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded mb-6 transition duration-300">
+                    Start Detection
+                </button>
+                <div class="flex justify-center mb-6">
+                    <div id="webcam-area-wrapper" class="relative border-2 border-gray-300 rounded-lg bg-gray-100" style="width: 300px; height: 300px;">
+                        <div id="webcam-placeholder" class="absolute inset-0 flex flex-col items-center justify-center text-center p-4 z-20">
+                            <svg class="w-16 h-16 text-gray-500 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                            <p class="text-gray-600 font-medium">Webcam View</p>
+                            <p class="text-gray-500 text-xs">Position yourself for pose detection</p>
+                        </div>
+                        <canvas id="canvas" class="absolute top-0 left-0 rounded-lg" style="width: 300px; height: 300px; z-index: 10;"></canvas>
+                    </div>
+                </div>
+                <div id="label-container" class="p-4 bg-gray-50 rounded-lg text-center text-lg font-medium"></div>
+            `;
+        }
+
+        async function init() {
+            const size = 300; // Moved size declaration here
+
+            setBodyBackground(defaultBodyGradient); // Reset to default background
+
+            if (!dynamicCardContentElement) {
+                dynamicCardContentElement = document.getElementById('dynamic-card-content');
+            }
+            // Ensure initial UI is present if starting/restarting
+            if (!document.getElementById('canvas') || !document.getElementById('label-container')) {
+                 dynamicCardContentElement.innerHTML = getInitialHTMLForCard();
+            }
+
+            const modelURL = URL + "model.json";
+            const metadataURL = URL + "metadata.json";
+
+            try {
+                model = await tmPose.load(modelURL, metadataURL);
+                maxPredictions = model.getTotalClasses();
+
+                // const size = 300; // Original position - removed from here
+                const flip = true; 
+                webcam = new tmPose.Webcam(size, size, flip);
+                await webcam.setup(); 
+                await webcam.play();
+                console.log("Webcam setup attempt finished.");
+
+                // Check underlying video element state and manually set webcam.playing if appropriate
+                if (webcam.webcam && webcam.webcam.readyState >= 3 && !webcam.webcam.paused) {
+                    console.log("Underlying HTML video element appears to be playing. Manually setting webcam.playing to true.");
+                    webcam.playing = true;
+                } else {
+                    console.warn("Underlying HTML video element does not appear to be playing. webcam.playing remains:", webcam.playing);
+                }
+
+                console.log("webcam.playing property after potential manual override:", webcam.playing);
+
+                if (webcam.webcam) { // webcam.webcam is the HTMLVideoElement
+                    console.log("Underlying video element (webcam.webcam) dimensions:", webcam.webcam.videoWidth, "x", webcam.webcam.videoHeight);
+                    console.log("Underlying video element (webcam.webcam) readyState:", webcam.webcam.readyState);
+                    console.log("Underlying video element (webcam.webcam) paused state:", webcam.webcam.paused);
+                    if (webcam.webcam.videoWidth === 0) {
+                        console.warn("Webcam videoWidth is 0. The stream might not be active. Check camera permissions and ensure no other app is using the camera.");
+                    }
+                } else {
+                    console.error("webcam.webcam (HTMLVideoElement) is not available after webcam.play().");
+                }
+                if (webcam.canvas) {
+                    console.log("Webcam internal canvas (webcam.canvas) dimensions:", webcam.canvas.width, "x", webcam.canvas.height);
+                } else {
+                    console.error("Webcam internal canvas (webcam.canvas) not available after setup.");
+                }
+
+            } catch (e) {
+                console.error("Error loading model or setting up webcam:", e);
+                if (dynamicCardContentElement) {
+                    dynamicCardContentElement.innerHTML = `<div class="p-8 text-center text-red-500">Failed to initialize. Error: ${e.message}. <button onclick="init()" class="text-blue-500 underline">Try Again</button></div>`;
+                }
+                return;
+            }
+            
+            const canvas = document.getElementById("canvas");
+            if (!canvas) { console.error("Canvas not found"); return; }
+            canvas.width = size; canvas.height = size;
+            ctx = canvas.getContext("2d");
+            
+            labelContainer = document.getElementById("label-container");
+            if (!labelContainer) { console.error("Label container not found"); return; }
+            labelContainer.innerHTML = ""; 
+            for (let i = 0; i < maxPredictions; i++) { 
+                labelContainer.appendChild(document.createElement("div"));
+            }
+
+            analysisStopped = false;
+            lastPrediction = null;
+            if (analysisTimeout) clearTimeout(analysisTimeout);
+            analysisTimeout = setTimeout(stopAnalysis, 10000); 
+
+            const startButton = dynamicCardContentElement.querySelector('button[onclick="init()"]');
+            if (startButton) {
+                startButton.textContent = "Detecting...";
+                startButton.disabled = true;
+            }
+
+            // Hide placeholder when starting
+            const webcamPlaceholder = document.getElementById('webcam-placeholder');
+            if (webcamPlaceholder) {
+                webcamPlaceholder.classList.add('hidden');
+            }
+
+            // Start fake progress bar
+            const progressBarContainer = document.getElementById('progress-bar-container');
+            const progressBar = document.getElementById('progress-bar');
+            if (progressBarContainer && progressBar) {
+                progressBarContainer.classList.remove('hidden');
+                progressBar.style.width = '0%';
+                let progress = 0;
+                if(progressInterval) clearInterval(progressInterval);
+                progressInterval = setInterval(() => {
+                    progress += 1; // Slower increment for a 10-second duration
+                    progressBar.style.width = progress + '%';
+                    if (progress >= 100) {
+                        clearInterval(progressInterval);
+                    }
+                }, 100); // 100ms * 100 = 10 seconds
+            }
+
+            window.requestAnimationFrame(loop);
+        }
+
+        function stopAnalysis() {
+            analysisStopped = true;
+            if (webcam && webcam.playing) {
+                // webcam.stop(); 
+            }
+            if (analysisTimeout) clearTimeout(analysisTimeout);
+            if(progressInterval) clearInterval(progressInterval); // Stop progress bar if analysis stops early
+            const progressBarContainer = document.getElementById('progress-bar-container');
+            if(progressBarContainer) progressBarContainer.classList.add('hidden');
+
+            // Show placeholder again if we are resetting to initial state (e.g. no player detected or for next round)
+            // This part depends on how you want the UI to behave after analysis. 
+            // If the card content is completely replaced, the placeholder will be part of the new initialHTML.
+            // If not, you might need to explicitly show it here or in init() when resetting.
+
+            // currentPlayersData is now defined at a higher scope
+            // ... (rest of the stopAnalysis function remains largely the same)
+            // Store player data for potential use in save/share functions
+            currentPlayersData = {
+                "Ronaldo": {
+                    wiki: "https://en.wikipedia.org/wiki/Cristiano_Ronaldo",
+                    video: "videos/ronaldo.mov",
+                    description: "Cristiano Ronaldo is a Portuguese professional footballer widely regarded as one of the greatest players of all time.",
+                    goals: 850 // Example data
+                },
+                "Messi": {
+                    wiki: "https://en.wikipedia.org/wiki/Lionel_Messi",
+                    video: "videos/messi.mov",
+                    description: "Lionel Messi is an Argentine professional footballer, often considered the best player in the world and widely regarded as one of the greatest players of all time.",
+                    goals: 800 // Example data
+                },
+                "Neymar": {
+                    wiki: "https://en.wikipedia.org/wiki/Neymar",
+                    video: "videos/neymar.mov",
+                    description: "Neymar Jr. is a Brazilian professional footballer known for his dribbling, finishing, skill, pace, and ability with both feet.",
+                    goals: 450 // Example data
+                },
+                "Mbappe": { 
+                    wiki: "https://en.wikipedia.org/wiki/Kylian_Mbapp%C3%A9",
+                    video: "videos/mbappe.mov",
+                    description: "Kylian Mbappé is a French professional footballer known for his finishing, dribbling, and speed.",
+                    goals: 300 // Example data
+                }
+            };
+            
+            let htmlContent = '';
+
+            if (lastPrediction && lastPrediction.length) {
+                let bestIdx = 0;
+                let bestProb = 0;
+                for (let i = 0; i < lastPrediction.length; i++) {
+                    if (lastPrediction[i].probability > bestProb) {
+                        bestProb = lastPrediction[i].probability;
+                        bestIdx = i;
+                    }
+                }
+                const detectedPlayer = lastPrediction[bestIdx].className;
+                const playerData = currentPlayersData[detectedPlayer]; // Use currentPlayersData
+
+                // --- Set background based on player ---
+                if (playerBackgroundGradients[detectedPlayer]) {
+                    setBodyBackground(playerBackgroundGradients[detectedPlayer]);
+                } else {
+                    setBodyBackground(defaultBodyGradient); // Fallback to default if no specific gradient
+                }
+                // --- End set background ---
+
+                let playerDisplayHTML;
+                if (playerData && playerData.wiki) {
+                    playerDisplayHTML = `<a href="${playerData.wiki}" target="_blank" rel="noopener" class="text-blue-600 font-bold hover:underline">${detectedPlayer}</a>`;
+                } else {
+                    playerDisplayHTML = `<b>${detectedPlayer}</b>`;
+                }
+
+                let mediaDisplayHTML = '<p class="text-sm text-gray-500">Pose media not available.</p>';
+                if (playerData && playerData.video) {
+                    mediaDisplayHTML = `<video src="${playerData.video}" autoplay loop playsinline class="mx-auto border-2 border-gray-300 rounded-lg my-4" style="width: 300px; height: 300px; object-fit: cover;"></video>`;
+                } else {
+                    // Fallback to canvas image if video not available for a player, or remove this if only video is desired
+                    const canvasElement = document.getElementById("canvas");
+                    let poseImageUrl = '';
+                    if (canvasElement) {
+                        poseImageUrl = canvasElement.toDataURL();
+                        mediaDisplayHTML = `<img src="${poseImageUrl}" alt="Detected pose of ${detectedPlayer}" class="mx-auto border-2 border-gray-300 rounded-lg my-4" style="width: 300px; height: 300px;">`;
+                    }
+                }
+
+                htmlContent = `
+                    <div class="p-8 text-center">
+                        <h2 class="text-2xl font-bold text-indigo-600 mb-4">Pose Analysis Complete!</h2>
+                        <h3 class="text-xl mb-2">This pose belongs to: ${playerDisplayHTML}</h3>
+                        ${mediaDisplayHTML}
+                        ${playerData && playerData.description ? `<p class="text-gray-700 my-4 text-sm">${playerData.description}</p>` : ''}
+                        ${playerData && typeof playerData.goals !== 'undefined' ? `
+                        <div class="my-4 p-3 bg-indigo-50 rounded-lg">
+                            <h4 class="text-md font-semibold text-indigo-500">Career Goals (Approx.):</h4>
+                            <p class="text-4xl font-bold text-indigo-700 animate-pulse">${playerData.goals}</p>
+                        </div>` : ''}
+                        ${playerData && playerData.wiki ? `<p class="text-gray-700 mb-4">Learn more about ${detectedPlayer} on their Wikipedia page.</p>` : `<p class="text-gray-700 mb-4">No Wikipedia link available for this player.</p>`}
+                        <button type="button" onclick="init()" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded transition duration-300 mt-4">
+                            Restart Analysis
+                        </button>
+                        <button type="button" onclick="savePlayerResult('${detectedPlayer}')" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded transition duration-300 mt-2">
+                            Save Result
+                        </button>
+                        <button type="button" onclick="sharePlayerResult('${detectedPlayer}')" class="w-full bg-teal-500 hover:bg-teal-600 text-white font-bold py-2 px-4 rounded transition duration-300 mt-2">
+                            Share Result
+                        </button>
+                    </div>
+                `;
+            } else {
+                htmlContent = `
+                    <div class="p-8 text-center">
+                        <h2 class="text-xl text-gray-600 mb-4">Analysis stopped. No player detected.</h2>
+                        <button type="button" onclick="init()" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded transition duration-300 mt-4">
+                            Restart Analysis
+                        </button>
+                    </div>
+                `;
+                setBodyBackground(defaultBodyGradient); // Reset to default if no player detected
+            }
+            if (dynamicCardContentElement) {
+                dynamicCardContentElement.innerHTML = htmlContent;
+            }
+        }
+
+        // Placeholder functions for Save and Share
+        function savePlayerResult(playerName) {
+            if (!currentPlayersData || !currentPlayersData[playerName]) {
+                alert("Player data not found.");
+                return;
+            }
+            const playerData = currentPlayersData[playerName];
+            const resultText = `I detected ${playerName} with the Football Pose Detector!\nDescription: ${playerData.description}\nTotal Goals: ${playerData.goals || 'N/A'}`;
+            
+            // Simple save: Create a text file and download it
+            const blob = new Blob([resultText], { type: 'text/plain' });
+            const anchor = document.createElement('a');
+            anchor.download = `${playerName}_pose_result.txt`;
+            anchor.href = window.URL.createObjectURL(blob);
+            anchor.click();
+            window.URL.revokeObjectURL(anchor.href);
+            alert("Result saved as a text file!");
+        }
+
+        function sharePlayerResult(playerName) {
+            if (!currentPlayersData || !currentPlayersData[playerName]) {
+                alert("Player data not found.");
+                return;
+            }
+            const playerData = currentPlayersData[playerName];
+            const shareText = `Check out this cool pose detection! I was identified as ${playerName}. Total goals: ${playerData.goals || 'N/A'}. Try it yourself!`;
+            const pageUrl = window.location.href;
+
+            if (navigator.share) {
+                navigator.share({
+                    title: 'Football Pose Detected!',
+                    text: shareText,
+                    url: pageUrl,
+                })
+                .then(() => console.log('Successful share'))
+                .catch((error) => console.log('Error sharing', error));
+            } else {
+                // Fallback for browsers that don't support Web Share API
+                const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(pageUrl)}`;
+                window.open(twitterUrl, '_blank');
+                // You could add more fallbacks for other platforms like Facebook, WhatsApp, etc.
+            }
+        }
+
+        async function loop(timestamp) {
+            if (analysisStopped || !webcam || !webcam.playing) {
+                console.log("Loop skipped or stopping. AnalysisStopped:", analysisStopped, "Webcam object valid:", !!webcam, "webcam.playing property:", webcam ? webcam.playing : 'N/A');
+                return;
+            }
+            console.log("Loop running. webcam.playing property:", webcam.playing, "Timestamp:", timestamp);
+            webcam.update(); 
+            await predict();
+            if (!analysisStopped) {
+                window.requestAnimationFrame(loop);
+            }
+        }
+
+        async function predict() {
+            if (!model || !webcam || !webcam.canvas || !webcam.playing) { // Added !webcam.playing check
+                // console.log("Predict function skipped due to missing model, webcam, webcam.canvas, or webcam not playing.");
+                return;
+            }
+            const { pose, posenetOutput } = await model.estimatePose(webcam.canvas);
+            const prediction = await model.predict(posenetOutput);
+            lastPrediction = prediction; 
+
+            if (!analysisStopped && labelContainer && labelContainer.childNodes.length === maxPredictions) { 
+                for (let i = 0; i < maxPredictions; i++) {
+                    const classPrediction =
+                        prediction[i].className + ": " + prediction[i].probability.toFixed(2);
+                    if (labelContainer.childNodes[i]) {
+                         labelContainer.childNodes[i].innerHTML = `<div class="mb-2 text-gray-700">${classPrediction}</div>`;
+                    }
+                }
+            }
+            drawPose(pose); 
+        }
+
+        function drawPose(pose) {
+            console.log("drawPose called. webcam.canvas valid?", !!(webcam && webcam.canvas));
+            if (webcam && webcam.canvas) {
+                ctx.drawImage(webcam.canvas, 0, 0);
+                console.log("Drew webcam.canvas to main display canvas. webcam.canvas dimensions in drawPose:", webcam.canvas.width, "x", webcam.canvas.height);
+                // draw the keypoints and skeleton
+                if (pose) {
+                    const minPartConfidence = 0.5;
+                    tmPose.drawKeypoints(pose.keypoints, minPartConfidence, ctx);
+                    tmPose.drawSkeleton(pose.keypoints, minPartConfidence, ctx);
+                }
+            }
+        }
+    </script>
+</body>
+</html>

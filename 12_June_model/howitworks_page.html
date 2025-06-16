@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How It Works - Football Player Pose Detector</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen flex flex-col bg-gradient-to-br from-green-400 via-teal-500 to-blue-600 p-4 md:p-8">
+    <nav class="bg-gradient-to-r from-gray-700 via-gray-800 to-gray-900 shadow-lg rounded-lg m-4 md:m-0">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center">
+                    <a href="model_test.html" class="font-bold text-xl text-white">Teachable Machine Project</a>
+                </div>
+                <div class="hidden md:block">
+                    <div class="ml-10 flex items-baseline space-x-4">
+                        <a href="model_test.html" class="text-white hover:bg-gray-600 hover:text-white px-3 py-2 rounded-md text-sm font-medium">Home</a>
+                        <!-- Add other links as needed -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="max-w-2xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden mt-8 flex-grow p-6 md:p-10">
+        <h1 class="text-3xl font-bold text-center text-gray-800 mb-8">How This Website Was Created with Teachable Machine</h1>
+        
+        <div class="space-y-6 text-gray-700">
+            <section>
+                <h2 class="text-2xl font-semibold text-teal-600 mb-3">1. The Idea: Pose Detection</h2>
+                <p>The goal was to create a web application that could identify famous football players based on their characteristic poses. This involves using a machine learning model trained to recognize these specific poses.</p>
+            </section>
+
+            <section>
+                <h2 class="text-2xl font-semibold text-teal-600 mb-3">2. Google's Teachable Machine</h2>
+                <p>Google's Teachable Machine is a web-based tool that makes it easy to create machine learning models without writing any code. For this project, the "Pose Project" type was selected.</p>
+                <img src="images/TeachableMachine.png" alt="Teachable Machine Pose Project Interface" class="mx-auto my-4 rounded-lg shadow-md w-full max-w-md">
+            </section>
+
+            <section>
+                <h2 class="text-2xl font-semibold text-teal-600 mb-3">3. Gathering Data (Classes & Samples)</h2>
+                <p>Classes were created for each football player we wanted to recognize (e.g., Messi, Ronaldo, Neymar, Mbappé). For each player, multiple image samples of them in various iconic poses were gathered. Teachable Machine allows uploading images or capturing them live with a webcam. The more varied and clear the samples, the better the model performs.</p>
+            </section>
+
+            <section>
+                <h2 class="text-2xl font-semibold text-teal-600 mb-3">4. Training the Model</h2>
+                <p>Once the samples were uploaded for each class, the model was trained directly within the Teachable Machine interface. This process involves the platform analyzing the poses and learning to differentiate between them. Teachable Machine provides options to tweak training parameters, but the defaults are often sufficient for good results.</p>
+            </section>
+
+            <section>
+                <h2 class="text-2xl font-semibold text-teal-600 mb-3">5. Exporting the Model</h2>
+                <p>After training and testing the model in the Teachable Machine preview, it was exported for use in a web application. The platform provides a shareable link to the trained model (Tensorflow.js format), which includes the model files and metadata.</p>
+            </section>
+
+            <section>
+                <h2 class="text-2xl font-semibold text-teal-600 mb-3">6. Integrating into the Website (HTML & JavaScript)</h2>
+                <p>The main page (<code>model_test.html</code>) was built using HTML for structure and Tailwind CSS for styling. JavaScript, along with the Teachable Machine Pose library (<code>@teachablemachine/pose</code>) and TensorFlow.js (<code>@tensorflow/tfjs</code>), was used to:</p>
+                <ul class="list-disc list-inside ml-4 space-y-1">
+                    <li>Load the exported Teachable Machine model using the provided URL.</li>
+                    <li>Access the user's webcam.</li>
+                    <li>Continuously capture frames from the webcam.</li>
+                    <li>Feed these frames to the model for pose estimation and prediction.</li>
+                    <li>Display the live webcam feed and the model's predictions (which player's pose is detected and with what confidence).</li>
+                    <li>Implement features like stopping analysis, showing player-specific videos, and linking to Wikipedia pages.</li>
+                </ul>
+            </section>
+
+            <section>
+                <h2 class="text-2xl font-semibold text-teal-600 mb-3">7. User Interface and Experience</h2>
+                <p>The UI was designed to be intuitive, with a clear "Start Detection" button. After analysis, the interface dynamically updates to show the detected player's name, a video of them, a brief description, and a link to their Wikipedia page. Tailwind CSS was used extensively to create a modern, responsive design, including the navigation bar, main content card, and footer.</p>
+            </section>
+
+            <p class="mt-8 text-center text-gray-600">This project demonstrates how Teachable Machine can rapidly prototype and build functional machine learning applications for the web with minimal coding for the ML part itself.</p>
+        </div>
+    </div>
+
+    <footer class="bg-gray-800 text-white text-center p-4 rounded-lg w-full mt-8">
+        <p>© 2025 Teachable Machine Project. All rights reserved. | <a href="model_test.html" class="hover:underline">Back to Detector</a></p>
+    </footer>
+</body>
+</html>
